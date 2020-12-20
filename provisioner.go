@@ -371,11 +371,6 @@ func (p *LocalPathProvisioner) createHelperPod(action ActionType, cmdsForPath []
 	}
 	lpvVolumeMounts := []v1.VolumeMount{
 		{
-			Name:      "data",
-			ReadOnly:  false,
-			MountPath: parentDir,
-		},
-		{
 			Name:      "script",
 			ReadOnly:  false,
 			MountPath: "/script",
@@ -400,6 +395,22 @@ func (p *LocalPathProvisioner) createHelperPod(action ActionType, cmdsForPath []
 	helperPod.Spec.RestartPolicy = v1.RestartPolicyNever
 	helperPod.Spec.Tolerations = append(helperPod.Spec.Tolerations, lpvTolerations...)
 	helperPod.Spec.Volumes = append(helperPod.Spec.Volumes, lpvVolumes...)
+
+	//Allow the helperPod, to override the data volumeMount.
+	hasOverride := false
+	for _, v := range helperPod.Spec.Containers[0].VolumeMounts {
+		if (v.Name == "data") {
+			hasOverride = true
+		}
+	}
+	if (!hasOverride) {
+		lpvVolumeMounts = append(lpvVolumeMounts, v1.VolumeMount{
+			Name:      "data",
+			ReadOnly:  false,
+			MountPath: parentDir,
+		})
+	}
+
 	helperPod.Spec.Containers[0].VolumeMounts = append(helperPod.Spec.Containers[0].VolumeMounts, lpvVolumeMounts...)
 	helperPod.Spec.Containers[0].Command = cmdsForPath
 	helperPod.Spec.Containers[0].Args = []string{"-p", filepath.Join(parentDir, volumeDir),
